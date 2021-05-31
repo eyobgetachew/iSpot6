@@ -1,0 +1,28 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/external-data-integration
+    docker:
+      - image: 'circleci/openjdk:8-jdk'
+        environment:
+          MULE_VERSION: 4.0.0
+          MULE_APP_NAME: external-data-integration
+          MULE_ENV: DEV
+          MULE_WORKER_TYPE: MICRO
+          MULE_WORKER: 1
+    steps: # a collection of executable commands
+      - checkout # check out source code to working directory
+      # restore cache (if needed/available)
+      - restore_cache:
+          key: dep-cache-{{ checksum "pom.xml" }}
+      - run: mvn clean package
+      # populate the cache
+      - save_cache:
+          paths:
+            - ~/target/repository
+          key: dep-cache-{{ checksum "pom.xml" }}
+      - run: mkdir artifacts ; cp target/*.jar artifacts/application.jar
+      - run:
+          name: publish to mulsoft
+          command: |
+            mvn -s settings.xml clean deploy -DmuleDeploy\-DMULE_ENV=${MULE_ENV}\-DMULE_VERSION=${MULE_VERSION}\-DMULE_APP_NAME=${MULE_APP_NAME}\MULE_WORKER_TYPE=${MULE_WORKER_TYPE}\-DMULE_WORKER=${MULE_WORKER}

@@ -1,0 +1,205 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="inputToDB" format="json">
+      <types:shape format="weave" example="examples/inputToDB.json"><![CDATA[%dw 2.0
+
+type inputToDB = Array<{|  conversationId: String,   created_at: Number {"typeId": "int"},   last_close_at: Number {"typeId": "int"},   time_to_admin_reply: Number {"typeId": "int"},   contact: {|    contactId: String,     SPID: Number {"typeId": "int"},     name: String,     email: String  |},   context: String,   url: String,   admins: Array<{|    adminId: String,     name: String,     email: String  |}>, 
+  tags: Array<{|    tagId: String,     name: String  |}>
+|}> {"example": "[{\\\"conversationId\\\":\\\"150636800000067\\\",\\\"created_at\\\":1539897198,\\\"last_close_at\\\":1539897200,\\\"time_to_admin_reply\\\":2408,\\\"contact\\\":{\\\"contactId\\\":\\\"5ed11243b32f20ce28b32161\\\",\\\"SPID\\\":598384,\\\"name\\\":\\\"Geno Reabei\\\",\\\"email\\\":\\\"genosiding@yahoo.com\\\"},\\\"context\\\":\\\"<p>Sorry - one more for a screenshot<\\/p>\\\",\\\"url\\\":\\\"https:\\/\\/intercom-survey-app.glitch.me\\/\\\",\\\"admins\\\":[{\\\"adminId\\\":\\\"3807760\\\",\\\"name\\\":\\\"Jeana\\\",\\\"email\\\":\\\"jeanaw@angieslist.com\\\"}],\\\"tags\\\":[{\\\"tagId\\\":\\\"17513\\\",\\\"name\\\":\\\"independent\\\"}]}]"}
+
+]]></types:shape>
+    </types:type>
+    <types:type name="conversations" format="json">
+      <types:shape format="weave" example="examples/conversations.json"><![CDATA[%dw 2.0
+
+type conversations = {|
+  "type": String, 
+  pages: {|
+    "type": String, 
+    next: String, 
+    page: Number {"typeId": "int"}, 
+    per_page: Number {"typeId": "int"}, 
+    total_pages: Number {"typeId": "int"}
+  |}, 
+  total_count: Number {"typeId": "int"}, 
+  conversations: Array<{|    "type": String,     id: String,     created_at: Number {"typeId": "int"},     updated_at: Number {"typeId": "int"},     waiting_since: Null,     snoozed_until: Null,     source: {|      "type": String,       id: String,       delivered_as: String,       subject: String,       body: String,       author: {|        "type": String,         id: String,         name: String,         email: String      |},       attachments: Array<Any>, 
+      url: String
+    |}, 
+    contacts: {|
+      "type": String, 
+      contacts: Array<{|        "type": String,         id: String      |}>
+    |}, 
+    first_contact_reply: {|
+      created_at: Number {"typeId": "int"}, 
+      "type": String, 
+      url: String
+    |}, 
+    open: Boolean, 
+    state: String, 
+    read: Boolean, 
+    tags: {|
+      "type": String, 
+      tags: Array<{|        "type": String,         id: String,         name: String,         applied_at: Number {"typeId": "int"},         applied_by: {|          "type": String,           id: String        |}      |}>
+    |}, 
+    priority: String, 
+    sla_applied: Null, 
+    statistics: {|
+      "type": String, 
+      time_to_assignment: Null, 
+      time_to_admin_reply: Number {"typeId": "int"}, 
+      time_to_first_close: Number {"typeId": "int"}, 
+      time_to_last_close: Number {"typeId": "int"}, 
+      median_time_to_reply: Number {"typeId": "int"}, 
+      first_contact_reply_at: Number {"typeId": "int"}, 
+      first_assignment_at: Number {"typeId": "int"}, 
+      first_admin_reply_at: Number {"typeId": "int"}, 
+      first_close_at: Number {"typeId": "int"}, 
+      last_assignment_at: Number {"typeId": "int"}, 
+      last_assignment_admin_reply_at: Number {"typeId": "int"}, 
+      last_contact_reply_at: Number {"typeId": "int"}, 
+      last_admin_reply_at: Number {"typeId": "int"}, 
+      last_close_at: Number {"typeId": "int"}, 
+      last_closed_by_id: Number {"typeId": "int"}, 
+      count_reopens: Number {"typeId": "int"}, 
+      count_assignments: Number {"typeId": "int"}, 
+      count_conversation_parts: Number {"typeId": "int"}
+    |}, 
+    conversation_rating: {|
+      rating: Null, 
+      remark: Null, 
+      created_at: Number {"typeId": "int"}, 
+      contact: {|
+        "type": String, 
+        id: String
+      |}, 
+      teammate: {|
+        "type": String, 
+        id: String
+      |}
+    |}, 
+    teammates: {|
+      "type": String, 
+      admins: Array<{|        "type": String,         id: String      |}>
+    |}, 
+    assignee: {|
+      "type": String, 
+      id: String
+    |}
+  |}>
+|} {"example": "{\\\"type\\\":\\\"conversation.list\\\",\\\"pages\\\":{\\\"type\\\":\\\"pages\\\",\\\"next\\\":\\\"https:\\/\\/api.intercom.io\\/conversations?per_page=20&page=2\\\",\\\"page\\\":1,\\\"per_page\\\":20,\\\"total_pages\\\":24},\\\"total_count\\\":480,\\\"conversations\\\":[{\\\"type\\\":\\\"conversation\\\",\\\"id\\\":\\\"150149300000144\\\",\\\"created_at\\\":1594738127,\\\"updated_at\\\":1594741749,\\\"waiting_since\\\":null,\\\"snoozed_until\\\":null,\\\"source\\\":{\\\"type\\\":\\\"conversation\\\",\\\"id\\\":\\\"594235932\\\",\\\"delivered_as\\\":\\\"customer_initiated\\\",\\\"subject\\\":\\\"\\\",\\\"body\\\":\\\"<p>Hello, I reached out last week to speak with someone about my \\\\\\\"rep\\\\\\\" &amp; and I still haven't heard back. I am spending a lot of money to have a rep I am not comfortable working with. Please check on the status of my request<\\/p>\\\",\\\"author\\\":{\\\"type\\\":\\\"user\\\",\\\"id\\\":\\\"5ecd2d479c244341b47ccf22\\\",\\\"name\\\":\\\"Kathryn Weisman\\\",\\\"email\\\":\\\"kathryn@miraclecontractors.net\\\"},\\\"attachments\\\":[],\\\"url\\\":\\\"https:\\/\\/office.angieslist.com\\/app\\/home\\/25132796\\\"},\\\"contacts\\\":{\\\"type\\\":\\\"contact.list\\\",\\\"contacts\\\":[{\\\"type\\\":\\\"contact\\\",\\\"id\\\":\\\"5ecd2d479c244341b47ccf22\\\"}]},\\\"first_contact_reply\\\":{\\\"created_at\\\":1594738127,\\\"type\\\":\\\"conversation\\\",\\\"url\\\":\\\"https:\\/\\/office.angieslist.com\\/app\\/home\\/25132796\\\"},\\\"open\\\":false,\\\"state\\\":\\\"closed\\\",\\\"read\\\":true,\\\"tags\\\":{\\\"type\\\":\\\"tag.list\\\",\\\"tags\\\":[{\\\"type\\\":\\\"tag\\\",\\\"id\\\":\\\"4022820\\\",\\\"name\\\":\\\"Unresponsive CSM\\\",\\\"applied_at\\\":1594738324,\\\"applied_by\\\":{\\\"type\\\":\\\"admin\\\",\\\"id\\\":\\\"3830748\\\"}},{\\\"type\\\":\\\"tag\\\",\\\"id\\\":\\\"3994157\\\",\\\"name\\\":\\\"Unresolved\\\",\\\"applied_at\\\":1594738324,\\\"applied_by\\\":{\\\"type\\\":\\\"admin\\\",\\\"id\\\":\\\"3830748\\\"}}]},\\\"priority\\\":\\\"not_priority\\\",\\\"sla_applied\\\":null,\\\"statistics\\\":{\\\"type\\\":\\\"conversation_statistics\\\",\\\"time_to_assignment\\\":null,\\\"time_to_admin_reply\\\":13,\\\"time_to_first_close\\\":696,\\\"time_to_last_close\\\":3622,\\\"median_time_to_reply\\\":93,\\\"first_contact_reply_at\\\":1594738127,\\\"first_assignment_at\\\":1594738127,\\\"first_admin_reply_at\\\":1594738140,\\\"first_close_at\\\":1594738823,\\\"last_assignment_at\\\":1594738135,\\\"last_assignment_admin_reply_at\\\":1594738140,\\\"last_contact_reply_at\\\":1594741575,\\\"last_admin_reply_at\\\":1594741749,\\\"last_close_at\\\":1594741749,\\\"last_closed_by_id\\\":3830748,\\\"count_reopens\\\":1,\\\"count_assignments\\\":2,\\\"count_conversation_parts\\\":14},\\\"conversation_rating\\\":{\\\"rating\\\":null,\\\"remark\\\":null,\\\"created_at\\\":1594738833,\\\"contact\\\":{\\\"type\\\":\\\"user\\\",\\\"id\\\":\\\"5ecd2d479c244341b47ccf22\\\"},\\\"teammate\\\":{\\\"type\\\":\\\"admin\\\",\\\"id\\\":\\\"3830748\\\"}},\\\"teammates\\\":{\\\"type\\\":\\\"admin.list\\\",\\\"admins\\\":[{\\\"type\\\":\\\"admin\\\",\\\"id\\\":\\\"3830748\\\"}]},\\\"assignee\\\":{\\\"type\\\":\\\"admin\\\",\\\"id\\\":\\\"3830748\\\"}}]}"}
+
+]]></types:shape>
+    </types:type>
+    <types:type name="admins" format="json">
+      <types:shape format="weave" example="examples/admins.json"><![CDATA[%dw 2.0
+
+type admins = {|
+  admins: Array<{|    "type": String,     email: String,     id: String,     name: String,     away_mode_enabled: Boolean,     away_mode_reassign: Boolean,     has_inbox_seat: Boolean,     team_ids: Array<Any>
+  |}>
+|} {"example": "{\\\"admins\\\":[{\\\"type\\\":\\\"admin\\\",\\\"email\\\":\\\"rochelle@mhelpdesk.com\\\",\\\"id\\\":\\\"504786\\\",\\\"name\\\":\\\"Rochelle\\\",\\\"away_mode_enabled\\\":false,\\\"away_mode_reassign\\\":false,\\\"has_inbox_seat\\\":false,\\\"team_ids\\\":[]},{\\\"type\\\":\\\"admin\\\",\\\"email\\\":\\\"svick@mhelpdesk.com\\\",\\\"id\\\":\\\"888893\\\",\\\"name\\\":\\\"Shannon Vick\\\",\\\"away_mode_enabled\\\":false,\\\"away_mode_reassign\\\":false,\\\"has_inbox_seat\\\":true,\\\"team_ids\\\":[]}]}"}
+
+]]></types:shape>
+    </types:type>
+    <types:type name="contacts" format="json">
+      <types:shape format="weave" example="examples/contacts.json"><![CDATA[%dw 2.0
+
+type contacts = {|
+  data: Array<{|    "type": String,     id: String,     workspace_id: String,     external_id: String,     role: String,     email: String,     phone: Null,     name: String,     avatar: Null,     owner_id: Null,     social_profiles: {|      "type": String,       data: Array<Any>
+    |}, 
+    has_hard_bounced: Boolean, 
+    marked_email_as_spam: Boolean, 
+    unsubscribed_from_emails: Boolean, 
+    created_at: Number {"typeId": "int"}, 
+    updated_at: Number {"typeId": "int"}, 
+    signed_up_at: Number {"typeId": "int"}, 
+    last_seen_at: Number {"typeId": "int"}, 
+    last_replied_at: Number {"typeId": "int"}, 
+    last_contacted_at: Number {"typeId": "int"}, 
+    last_email_opened_at: Null, 
+    last_email_clicked_at: Null, 
+    language_override: Null, 
+    browser: String, 
+    browser_version: String, 
+    browser_language: String, 
+    os: String, 
+    location: {|
+      "type": String, 
+      country: String, 
+      region: Null, 
+      city: Null
+    |}, 
+    android_app_name: Null, 
+    android_app_version: Null, 
+    android_device: Null, 
+    android_os_version: Null, 
+    android_sdk_version: Null, 
+    android_last_seen_at: Null, 
+    ios_app_name: Null, 
+    ios_app_version: Null, 
+    ios_device: Null, 
+    ios_os_version: Null, 
+    ios_sdk_version: Null, 
+    ios_last_seen_at: Null, 
+    custom_attributes: {|
+      serviceProviderId: String, 
+      serviceProviderName: String, 
+      showcaseCount: Number {"typeId": "int"}, 
+      lastHealthAndServicesUpdate: Number {"typeId": "int"}
+    |}, 
+    tags: {|
+      "type": String, 
+      data: Array<Any>, 
+      url: String, 
+      total_count: Number {"typeId": "int"}, 
+      has_more: Boolean
+    |}, 
+    notes: {|
+      "type": String, 
+      data: Array<Any>, 
+      url: String, 
+      total_count: Number {"typeId": "int"}, 
+      has_more: Boolean
+    |}, 
+    companies: {|
+      "type": String, 
+      data: Array<Any>, 
+      url: String, 
+      total_count: Number {"typeId": "int"}, 
+      has_more: Boolean
+    |}
+  |}>
+|} {"example": "{\\\"data\\\":[{\\\"type\\\":\\\"contact\\\",\\\"id\\\":\\\"5ecd18fe50a312ebf67b7bff\\\",\\\"workspace_id\\\":\\\"yr4rczp2\\\",\\\"external_id\\\":\\\"84886000\\\",\\\"role\\\":\\\"user\\\",\\\"email\\\":\\\"angieslistsales@gmail.com\\\",\\\"phone\\\":null,\\\"name\\\":\\\"Test Sales User\\\",\\\"avatar\\\":null,\\\"owner_id\\\":null,\\\"social_profiles\\\":{\\\"type\\\":\\\"list\\\",\\\"data\\\":[]},\\\"has_hard_bounced\\\":false,\\\"marked_email_as_spam\\\":false,\\\"unsubscribed_from_emails\\\":false,\\\"created_at\\\":1590499582,\\\"updated_at\\\":1595349080,\\\"signed_up_at\\\":1590499582,\\\"last_seen_at\\\":1595349080,\\\"last_replied_at\\\":1592575689,\\\"last_contacted_at\\\":1592575770,\\\"last_email_opened_at\\\":null,\\\"last_email_clicked_at\\\":null,\\\"language_override\\\":null,\\\"browser\\\":\\\"chrome\\\",\\\"browser_version\\\":\\\"83.0.4103.116\\\",\\\"browser_language\\\":\\\"en\\\",\\\"os\\\":\\\"Windows 10\\\",\\\"location\\\":{\\\"type\\\":\\\"location\\\",\\\"country\\\":\\\"Philippines\\\",\\\"region\\\":null,\\\"city\\\":null},\\\"android_app_name\\\":null,\\\"android_app_version\\\":null,\\\"android_device\\\":null,\\\"android_os_version\\\":null,\\\"android_sdk_version\\\":null,\\\"android_last_seen_at\\\":null,\\\"ios_app_name\\\":null,\\\"ios_app_version\\\":null,\\\"ios_device\\\":null,\\\"ios_os_version\\\":null,\\\"ios_sdk_version\\\":null,\\\"ios_last_seen_at\\\":null,\\\"custom_attributes\\\":{\\\"serviceProviderId\\\":\\\"13869843\\\",\\\"serviceProviderName\\\":\\\"Wright Now Plumbing\\\",\\\"showcaseCount\\\":3,\\\"lastHealthAndServicesUpdate\\\":1579024379},\\\"tags\\\":{\\\"type\\\":\\\"list\\\",\\\"data\\\":[],\\\"url\\\":\\\"\\/contacts\\/5ecd18fe50a312ebf67b7bff\\/tags\\\",\\\"total_count\\\":0,\\\"has_more\\\":false},\\\"notes\\\":{\\\"type\\\":\\\"list\\\",\\\"data\\\":[],\\\"url\\\":\\\"\\/contacts\\/5ecd18fe50a312ebf67b7bff\\/notes\\\",\\\"total_count\\\":0,\\\"has_more\\\":false},\\\"companies\\\":{\\\"type\\\":\\\"list\\\",\\\"data\\\":[],\\\"url\\\":\\\"\\/contacts\\/5ecd18fe50a312ebf67b7bff\\/companies\\\",\\\"total_count\\\":0,\\\"has_more\\\":false}}]}"}
+
+]]></types:shape>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#7c890712-2306-4de5-a592-4c6700b44339"/>
+  <types:enrichment select="#46a7a8fd-e265-403c-8c20-3b04eb121179">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="admins"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#4bda800f-2b62-45c5-8625-33e6cd5a15ad">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="contacts"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+  <types:enrichment select="#c9119a23-e4a2-42c1-8c24-e52b71c02a77">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="conversations"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

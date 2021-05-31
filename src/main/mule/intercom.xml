@@ -1,0 +1,721 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+	<flow name="intercom-mainFlow"
+		doc:id="20174e22-657d-4add-b565-c52daf64468c">
+		<scheduler doc:name="Scheduler" doc:id="ed4d22e5-6164-4fbc-9be0-0db16cd68ba1" >
+			<scheduling-strategy >
+				<cron expression="${intercom.schedule}" timeZone="UTCs"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="log application name"
+			doc:id="8cf43f6f-dae8-4ee4-a547-12d84163acb4"
+			message="${mule.app.intercom}" />
+		<set-variable value="intercom-mainFlow"
+			doc:name="flowName" doc:id="ec0a433f-092e-4816-9347-d73fd5dda112"
+			variableName="flowName" />
+		<logger level="INFO" doc:name="log flowName"
+			doc:id="52ece372-14c3-452c-acda-bc5165ac8c8c"
+			message="#[vars.flowName ++ ' triggered']" />
+		<flow-ref doc:name="admins-to-intServFlow"
+			doc:id="ddecc22f-7f37-4ba3-9c1a-836a18ae726a"
+			name="admins-to-intServFlow" />
+	</flow>
+
+	<flow name="admins-to-intServFlow"
+		doc:id="5dfb49a4-40a4-42ee-aa6f-4859cdee817f">
+		<set-variable value="admins-to-intServFlow"
+			doc:name="flowName" doc:id="f77632b1-5efd-4782-b3f9-341322bb9c26"
+			variableName="flowName" />
+		<logger level="INFO" doc:name="start loading admins"
+			doc:id="5081631f-5280-410f-a348-483a2ef9c399"
+			message="#[vars.flowName ++ ': start loading admins to intServ']" />
+		<db:stored-procedure doc:name="truncate Admin_stg"
+			doc:id="ba0a40de-2e4d-44e6-93e4-3d468e4efc72"
+			config-ref="DB_IntServ_Intercom_Config">
+			<db:sql><![CDATA[{call proc_MuleSoftIntercom_Truncate_Table('Admin_stg')}]]></db:sql>
+		</db:stored-procedure>
+		<http:request method="GET" doc:name="/admins"
+			doc:id="48b20c7c-621b-431e-a353-5f36b23ce051"
+			config-ref="Intercom_HTTP_Request_config" path="/admins"
+			outputMimeType="application/json" />
+		<ee:transform doc:name="admins as payload"
+			doc:id="ce499dca-28cc-4a7a-86ac-6a03e52bef0a">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload.admins map {
+	id: $.id,
+	name: $.name,
+	email: trim($.email),
+	CreateDate: now() as DateTime,
+	CreatedBy: 87646654,
+	UpdateDate: now() as DateTime,
+	UpdatedBy: 87646654
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+			</ee:variables>
+		</ee:transform>
+		<db:bulk-insert doc:name="Admin_stg"
+			doc:id="163ed3fa-c342-41e4-ad79-172f69717b3b"
+			config-ref="DB_IntServ_Intercom_Config">
+			<db:sql><![CDATA[INSERT INTO Admin_stg(IntercomAdminId, IntercomAdminName, IntercomAdminEmail, CreateDate, CreatedBy, UpdateDate, UpdatedBy)
+VALUES (:id, :name, :email, :CreateDate, :CreatedBy, :UpdateDate, :UpdatedBy )]]></db:sql>
+		</db:bulk-insert>
+		<db:stored-procedure doc:name="rename tables"
+			doc:id="9aa048d2-e949-424d-bd13-b46721b4e682"
+			config-ref="DB_IntServ_Intercom_Config">
+			<db:sql><![CDATA[{call proc_MuleSoftIntercom_Rename_Tables('Admin')}]]></db:sql>
+		</db:stored-procedure>
+		<logger level="INFO"
+			doc:name="finished loading admins to intServ"
+			doc:id="35cdafd0-7b11-439b-8cf2-baf672d6f9e5"
+			message="#[vars.flowName ++ ': finished loading admins to intServ']" />
+		<vm:publish doc:name="admin-completed" doc:id="80e4738e-5b6f-430e-b47f-6d1b2ae417fd" config-ref="intercom_VM_Config" queueName="admin-completed"/>
+		<error-handler>
+			<on-error-continue enableNotifications="true"
+				logException="true" doc:name="On Error Continue"
+				doc:id="4d09b934-8032-468b-836e-b67dd56eda96" type="ANY">
+				<ee:transform doc:name="Transform Message"
+					doc:id="ff1f5cba-9c05-4ffb-a6a4-5dd0c774fa11">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    flow: vars.flowName,
+    errorIdentifier: error.errorType.identifier,
+    detailedDescription: error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger"
+					doc:id="8eefe558-b9a3-4e40-9e32-4a09d0214df2" message="#[payload]" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+
+	<flow name="contacts-to-IntservFlow"
+		doc:id="7377deba-f1f9-4524-8166-c6cf4f846d08">
+		<vm:listener queueName="admin-completed" doc:name="admin-completed" doc:id="8807ca89-3119-46c2-bb58-2e04f1a3adb0" config-ref="intercom_VM_Config" numberOfConsumers="1"/>
+		<set-variable value="contacts-to-IntservFlow"
+			doc:name="flowName" doc:id="743f07cf-c52c-43d5-b892-84d1101cf1bb"
+			variableName="flowName" />
+		<logger level="INFO" doc:name="start loading contacts"
+			doc:id="fe31b11d-b8e6-4622-804d-93f757245ec5"
+			message="#[vars.flowName ++ ': start loading contacts to intServ']" />
+		<db:stored-procedure
+			doc:name="truncate Contact_stg"
+			doc:id="430282b3-7254-4a36-9e18-8f8f146cba86"
+			config-ref="DB_IntServ_Intercom_Config" target="truncateResult">
+			<db:sql><![CDATA[{call proc_MuleSoftIntercom_Truncate_Table('Contact_stg')}]]></db:sql>
+		</db:stored-procedure>
+		<vm:publish-consume doc:name="contact-publish"
+			doc:id="e17e2323-5bd0-4695-ab44-14071ef8c885"
+			config-ref="intercom_VM_Config" queueName="contact-publish"
+			timeout="${intercom.vm.timeout.contacts}" />
+		<error-handler>
+			<on-error-continue enableNotifications="true"
+				logException="true" doc:name="On Error Continue"
+				doc:id="121dc45f-e96e-4728-99ae-3c7e3e7c7fcc" type="ANY">
+				<ee:transform doc:name="Transform Message"
+					doc:id="951f9de6-be8f-4daa-bf6d-0c3950cb6315">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    flow: vars.flowName,
+    errorIdentifier: error.errorType.identifier,
+    detailedDescription: error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger"
+					doc:id="80d2cd95-3a1a-4cf3-aff9-20565ed6bbd7" message="#[payload]" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+
+	<flow name="store-contact-OSFlow"
+		doc:id="cee7a36b-e7f7-4802-bcc3-c7cdccae857c">
+		<os:store doc:name="total_pages"
+			doc:id="1fa056ed-fa92-4fd8-b8fa-f7d9208604ac" key="total_pages"
+			objectStore="intercom_contact_Object_store">
+			<os:value><![CDATA[#[payload.pages.total_pages as Number]]]></os:value>
+		</os:store>
+		<os:store doc:name="page"
+			doc:id="9aa01ae1-53af-4531-9d35-7bc34510a102" key="page"
+			objectStore="intercom_contact_Object_store">
+			<os:value><![CDATA[#[payload.pages.page as Number]]]></os:value>
+		</os:store>
+		<os:store doc:name="cursor"
+			doc:id="d5f0d9ba-9fb7-4ce9-a70f-68ab22d08906" key="cursor"
+			objectStore="intercom_contact_Object_store">
+			<os:value><![CDATA[#[if(not isEmpty(null)) "" else payload.pages.next.starting_after]]]></os:value>
+		</os:store>
+	</flow>
+
+	<flow name="retrieve-contact-OSFlow"
+		doc:id="eccbca33-ad2a-4324-b0da-3a1f953b970b">
+		<os:retrieve doc:name="total_pages"
+			doc:id="e1a49d9e-c179-420f-b595-d78ada147661" key="total_pages"
+			target="total_pages" objectStore="intercom_contact_Object_store">
+			<os:default-value><![CDATA[#[0 as Number]]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="page"
+			doc:id="ce49b352-1399-4fc6-845f-696d35220aec" key="page"
+			target="page" objectStore="intercom_contact_Object_store">
+			<os:default-value><![CDATA[#[0 as Number]]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="cursor"
+			doc:id="490064ca-de4e-4cb7-a9ae-6bcc359120f0" key="cursor"
+			target="cursor" objectStore="intercom_contact_Object_store">
+			<os:default-value><![CDATA[#["" as String]]]></os:default-value>
+		</os:retrieve>
+	</flow>
+
+	<flow name="contact-processingFlow"
+		doc:id="b6a20b34-ab2e-424c-995a-2f9136763dea">
+		<vm:listener queueName="contact-publish"
+			doc:name="contact-publish" doc:id="0cfb84a8-c661-486c-be33-f6e01f906240"
+			config-ref="intercom_VM_Config" timeout="${intercom.vm.timeout.contacts}" numberOfConsumers="1"/>
+		<set-variable value="contact-processingFlow"
+			doc:name="flowName" doc:id="0e9af429-34cd-4f0b-85d8-bf7a9424553d"
+			variableName="flowName" />
+		<flow-ref doc:name="retrieve-contact-OSFlow"
+			doc:id="d7f39dd8-1c9d-4eed-9a20-bfbe14639659"
+			name="retrieve-contact-OSFlow" />
+		<set-variable value="#[vars.page as Number]"
+			doc:name="page" doc:id="fd8e0b70-0a59-47b1-a46c-59b997bde44e"
+			variableName="page" />
+		<set-variable value="#[vars.total_pages]"
+			doc:name="total_pages" doc:id="8d2b4617-da54-4908-b62a-2cfaa6dcd1c4"
+			variableName="total_pages" />
+		<set-variable value="#[vars.cursor]" doc:name="cursor"
+			doc:id="dbd27353-9809-46c6-ab75-e8f0e2123f72" variableName="cursor" />
+		<choice doc:name="Choice"
+			doc:id="a49b1c0c-9e5f-417c-88a2-20c7b0d276a2">
+			<when expression='#[vars.cursor == null]'>
+				<os:store doc:name="total_pages"
+					doc:id="3e92bb69-9eba-489e-b7cb-1387116531c2" key="total_pages"
+					objectStore="intercom_contact_Object_store">
+					<os:value><![CDATA[#[0 as Number]]]></os:value>
+				</os:store>
+				<os:store doc:name="page"
+					doc:id="0553e5a1-0a9c-47ef-b001-71569cadcba4" key="page"
+					objectStore="intercom_contact_Object_store">
+					<os:value><![CDATA[#[0 as Number]]]></os:value>
+				</os:store>
+				<os:store doc:name="cursor"
+					doc:id="8982255d-2281-4df2-a053-99a18c73a3ff" key="cursor"
+					objectStore="intercom_contact_Object_store">
+					<os:value><![CDATA[#["" as String]]]></os:value>
+				</os:store>
+				<db:stored-procedure doc:name="rename tables"
+					doc:id="6c8c2fac-6fc4-4520-ad3d-ad44dc9a0d97"
+					config-ref="DB_IntServ_Intercom_Config">
+					<db:sql><![CDATA[{call proc_MuleSoftIntercom_Rename_Tables('Contact')}]]></db:sql>
+				</db:stored-procedure>
+				<logger level="INFO" doc:name="finished loading contacts"
+					doc:id="1a6aadb7-2b37-4473-8f52-54903666d36e"
+					message="#[vars.flowName ++ ' finished loading contacts to intServ']" />
+				<vm:publish queueName="contact-completed" doc:name="contact-completed" doc:id="6fd3c550-1791-4b8e-8506-aad52a51b97a" config-ref="intercom_VM_Config"/>
+			</when>
+			<otherwise>
+				<until-successful maxRetries="5"
+					doc:name="Until Successful"
+					doc:id="feba3ad3-b401-4188-99de-52327b36c36b">
+					<http:request method="GET" doc:name="/contacts"
+						doc:id="d0ee16d7-9603-4ddc-827b-9588207478dc"
+						config-ref="Intercom_HTTP_Request_config"
+						path="/contacts?per_page=${intercom.per_page.contacts}&amp;starting_after={cursor}">
+						<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"cursor" : vars.cursor
+}]]]></http:uri-params>
+					</http:request>
+				</until-successful>
+				<logger level="INFO"
+					doc:name="log total_count and page from payload"
+					doc:id="92d57042-e8a5-40ba-9903-dbdfef055486"
+					message="#['contacts total count: ' ++ payload.total_count ++ ', page from payload: ' ++ payload.pages.page]" />
+				<flow-ref doc:name="store-contact-OSFlow"
+					doc:id="9f5d344b-d417-4d56-962f-6fb0358d1cc3"
+					name="store-contact-OSFlow" />
+				<logger level="INFO" doc:name="log new cursor"
+					doc:id="c66073bc-2cb8-4542-ab4c-93ec82e34b71"
+					message='#[if(not isEmpty(null)) "" else payload.pages.next.starting_after]' />
+				<ee:transform doc:name="payload"
+					doc:id="16c8df6c-13f3-41e7-9bf9-cb68cf127f8d">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+fun formatDateTime(field) = field as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}
+output application/java
+---
+payload.data map {
+	id: $.id,
+	name: $.name default "",
+	email: $.email default "",
+	serviceProviderId: $.custom_attributes."serviceProviderId" default "",
+	serviceProviderName: $.custom_attributes."serviceProviderName" default "",
+	createdAt: formatDateTime($.created_at as DateTime >> 'EST'),
+	updatedAt: if(not isEmpty($.updated_at)) null else formatDateTime($.updated_at as DateTime >> 'EST'),
+	CreateDate: now() as DateTime,
+	CreatedBy: 87646654,
+	UpdateDate: now() as DateTime,
+	UpdatedBy: 87646654
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+					</ee:variables>
+				</ee:transform>
+				<until-successful maxRetries="5"
+					doc:name="Until Successful"
+					doc:id="6e216ddc-c895-49b2-a333-67c734468cfc">
+					<db:bulk-insert doc:name="Contact"
+						doc:id="30ab4fac-be91-48f8-9ea4-95bb7c48b4e6"
+						config-ref="DB_IntServ_Intercom_Config" target="dbInsertResult">
+						<db:sql><![CDATA[INSERT INTO Contact_stg(IntercomContactId, IntercomContactName, IntercomContactEmail, IntercomServiceProviderId, IntercomServiceProviderName, IntercomCreatedAt, IntercomUpdatedAt, CreateDate, CreatedBy, UpdateDate, UpdatedBy)
+VALUES (:id, :name, :email, :serviceProviderId, :serviceProviderName , :createdAt, :updatedAt, :CreateDate, :CreatedBy, :UpdateDate, :UpdatedBy )]]></db:sql>
+					</db:bulk-insert>
+				</until-successful>
+				<vm:publish doc:name="contact-publish"
+					doc:id="8f99b147-4735-4f27-a423-7b9ebfdc3208"
+					config-ref="intercom_VM_Config" queueName="contact-publish">
+					<reconnect />
+				</vm:publish>
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-continue enableNotifications="true"
+				logException="true" doc:name="On Error Continue"
+				doc:id="fd915f0b-f10e-4fb6-90c8-41a158e8c958" type="ANY">
+				<ee:transform doc:name="Transform Message"
+					doc:id="5b7b804a-62d8-420d-9ac0-59d53d457546">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    flow: vars.flowName,
+    errorIdentifier: error.errorType.identifier,
+    detailedDescription: error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger"
+					doc:id="6475b172-aaf1-44f6-a77f-6c28ed99b7b6" message="#[payload]" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+
+	<flow name="conversations-to-intServFlow"
+		doc:id="50f07fb6-c536-47c6-9a4c-c226245f5a5a">
+		<vm:listener queueName="contact-completed" doc:name="contact-completed" doc:id="3ab07e2e-a601-47f3-958e-5258ce77335a" config-ref="intercom_VM_Config" numberOfConsumers="1"/>
+		<set-variable value="conversations-to-intServFlow"
+			doc:name="flowName" doc:id="77edb765-d809-44fd-9154-1112dc8b932c"
+			variableName="flowName" />
+		<logger level="INFO" doc:name="start loading conversations"
+			doc:id="2792f6e0-cfd2-4b0c-a53a-1555b00f5c89"
+			message="#[vars.flowName ++ ': Start loading conversations to intServ']" />
+		<db:stored-procedure
+			doc:name="truncate Conversation_stg"
+			doc:id="79b42427-b054-4368-bbc1-4559dc4ff072"
+			config-ref="DB_IntServ_Intercom_Config" target="truncateResult">
+			<db:sql><![CDATA[{call proc_MuleSoftIntercom_Truncate_Table('Conversation_stg')}]]></db:sql>
+		</db:stored-procedure>
+		<vm:publish-consume doc:name="conversation-publish"
+			doc:id="23a67a35-d040-4076-a3e6-27b28a00ba08"
+			config-ref="intercom_VM_Config" queueName="conversation-publish"
+			timeout="${intercom.vm.timeout.conversations}" />
+		<error-handler>
+			<on-error-continue enableNotifications="true"
+				logException="true" doc:name="On Error Continue"
+				doc:id="ec84f15c-98ee-4e45-8ec2-5e61dcd34988" type="ANY">
+				<ee:transform doc:name="Transform Message"
+					doc:id="46c88c8e-b3a9-4e22-ab3e-29c863cfe59b">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    flow: vars.flowName,
+    errorIdentifier: error.errorType.identifier,
+    detailedDescription: error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger"
+					doc:id="2ddc7af6-1350-49ca-bb03-cb295b5dbfba" message="#[payload]" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+
+	<flow name="store-conversation-OSFlow"
+		doc:id="9e508357-675a-4e05-8221-83d21bea912b">
+		<os:store doc:name="cursor"
+			doc:id="38973ab8-d80e-4e23-9cd8-bf312045c853" key="cursor"
+			objectStore="intercom_conversation_Object_store">
+			<os:value><![CDATA[#[payload.pages.page as Number + 1]]]></os:value>
+		</os:store>
+		<os:store doc:name="total_pages"
+			doc:id="49c7ddf3-c8d3-404f-b5de-eb0deab8be9e" key="total_pages"
+			objectStore="intercom_conversation_Object_store">
+			<os:value><![CDATA[#[payload.pages.total_pages as Number]]]></os:value>
+		</os:store>
+		<os:store doc:name="page"
+			doc:id="68dbd531-d54a-407a-84ec-0532bed59297" key="page"
+			objectStore="intercom_conversation_Object_store">
+			<os:value><![CDATA[#[payload.pages.page]]]></os:value>
+		</os:store>
+	</flow>
+
+	<flow name="retrieve-conversation-OSFlow"
+		doc:id="6b3319a2-f555-4c7e-b158-41b12e0d5936">
+		<os:retrieve doc:name="cursor"
+			doc:id="d564b89c-345b-4002-b934-f84f4091eda1" key="cursor"
+			target="cursor" objectStore="intercom_conversation_Object_store">
+			<os:default-value><![CDATA[#[1 as Number]]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="total_pages"
+			doc:id="49366715-abc5-46bb-a129-55b377f47a29" key="total_pages"
+			target="total_pages" objectStore="intercom_conversation_Object_store">
+			<os:default-value><![CDATA[#[1 as Number]]]></os:default-value>
+		</os:retrieve>
+		<os:retrieve doc:name="page"
+			doc:id="f2029984-36a7-4161-a57a-f89926366cdf" key="page"
+			target="page" objectStore="intercom_conversation_Object_store">
+			<os:default-value><![CDATA[#[0 as Number]]]></os:default-value>
+		</os:retrieve>
+	</flow>
+
+	<flow name="conversation-processingFlow"
+		doc:id="fbe05f7c-0c36-4d28-9d21-f8b77c40084e">
+		<vm:listener doc:name="conversation-publish"
+			doc:id="18711c4e-11c1-4adf-ab68-3d441d718cc1"
+			config-ref="intercom_VM_Config" queueName="conversation-publish" timeout="${intercom.vm.timeout.conversations}" numberOfConsumers="1"/>
+		<set-variable value="conversation-processingFlow"
+			doc:name="flowName" doc:id="66efba32-ba7e-476d-877b-e19b1de5ad6b"
+			variableName="flowName" />
+		<flow-ref doc:name="retrieve-conversation-OSFlow"
+			doc:id="493c6d0c-c077-43df-b1cf-40a30c4dff45"
+			name="retrieve-conversation-OSFlow" />
+		<set-variable value="#[vars.cursor as Number]"
+			doc:name="cursor" doc:id="c7a3277e-9565-48b9-8d76-a08742f27f75"
+			variableName="cursor" />
+		<set-variable value="#[vars.total_pages]"
+			doc:name="total_pages" doc:id="eb6a3046-2a2c-42a5-8ad0-5406e04931c3"
+			variableName="total_pages" />
+		<choice doc:name=""
+			doc:id="7835a56a-8a9d-4253-91aa-92dbcb7e3bd9">
+			<when
+				expression="#[vars.page == vars.total_pages and vars.cursor &gt; vars.total_pages]">
+				<os:store doc:name="cursor"
+					doc:id="43cb7d95-8dfc-4423-b3a0-ba7f429ddd24" key="cursor"
+					objectStore="intercom_conversation_Object_store">
+					<os:value><![CDATA[#[1 as Number]]]></os:value>
+				</os:store>
+				<os:store doc:name="total_pages"
+					doc:id="779ab21c-dbe0-4869-9454-ae2abe6e9d36" key="total_pages"
+					objectStore="intercom_conversation_Object_store">
+					<os:value><![CDATA[#[1 as Number]]]></os:value>
+				</os:store>
+				<os:store doc:name="page"
+					doc:id="4b08b607-71db-437b-b321-42c0d98305ec" key="page"
+					objectStore="intercom_conversation_Object_store">
+					<os:value><![CDATA[#[0 as Number]]]></os:value>
+				</os:store>
+				<db:stored-procedure doc:name="Rename tables"
+					doc:id="af27bf4c-5ff6-434d-ac4c-bd92e88b8e68"
+					config-ref="DB_IntServ_Intercom_Config">
+					<db:sql><![CDATA[{call proc_MuleSoftIntercom_Rename_Tables('Conversation')}]]></db:sql>
+				</db:stored-procedure>
+				<logger level="INFO"
+					doc:name="finished loading conversations"
+					doc:id="b717237c-c6a1-426c-98ab-d82624621d55"
+					message="#[vars.flowName ++ ' finished loading conversations to intServ']" />
+				<vm:publish queueName="conversation-completed" doc:name="conversation-completed" doc:id="8e5911b0-7fb9-4ccd-80f5-bfc89bbd0120" config-ref="intercom_VM_Config"/>
+			</when>
+			<otherwise>
+				<until-successful maxRetries="5"
+					doc:name="Until Successful"
+					doc:id="7dee386f-2f00-4613-9a59-3136ddd5d51b">
+					<http:request method="GET" doc:name="/conversations"
+						doc:id="a8f723e9-e3f1-4a4b-a6ff-daa8f9ec3452"
+						config-ref="Intercom_HTTP_Request_config"
+						path="/conversations?per_page=${intercom.per_page.conversations}&amp;page={cursor}">
+						<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"cursor" : vars.cursor
+}]]]></http:uri-params>
+					</http:request>
+				</until-successful>
+				<logger level="INFO" doc:name="log count and current page"
+					doc:id="3f4d699c-9f88-4a39-bee7-008570062ce0"
+					message="#['conversations total count: ' ++ payload.total_count ++ ', page from payload: ' ++ payload.pages.page]" />
+				<flow-ref doc:name="store-conversation-OSFlow"
+					doc:id="d2bb173e-33c4-4c99-9051-1a536d6a50be"
+					name="store-conversation-OSFlow" />
+				<ee:transform doc:name="payload"
+					doc:id="3f394cd3-e1cb-4726-a750-61134fa392e9">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+fun replaceValues(string, newVal, oldVal) = if(isEmpty(string default "")) string else string replace (oldVal) with (newVal)
+fun formatDateTime(field) = field as String {format: "yyyy-MM-dd HH:mm:ss.SSS"}
+output application/java
+---
+payload.conversations map {
+	id: $.id,
+	createdAt: formatDateTime($.created_at as DateTime >> 'EST'),
+	updatedAt: formatDateTime($.updated_at as DateTime >> 'EST'),
+	lastCloseAt: if(isEmpty($.statistics.last_close_at)) null else formatDateTime($.statistics.last_close_at as DateTime >> 'EST'),
+	initialResponse: if(isEmpty($.statistics.time_to_admin_reply)) null else $.statistics.time_to_admin_reply,
+	contactId: $.contacts.contacts.id[0],
+	tag: if (sizeOf($.tags.tags) == 0) "" else $.tags.tags.name reduce((item, accumulator) -> accumulator ++ ", " ++ item),
+	body: trim(replaceValues($.source.body,"",/\<.*?\>/)),
+	url: $.source.url default "",
+	adminId: $.teammates.admins.id[0],	
+	CreateDate: now() as DateTime,
+	CreatedBy: 87646654,
+	UpdateDate: now() as DateTime,
+	UpdatedBy: 87646654
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+					</ee:variables>
+				</ee:transform>
+				<until-successful maxRetries="5"
+					doc:name="Until Successful"
+					doc:id="e1525188-5589-4d87-8169-4a4ef536ff41">
+					<db:bulk-insert doc:name="Conversation"
+						doc:id="7f4fe7c6-1a0d-43b0-a85a-71f6e5296a56"
+						config-ref="DB_IntServ_Intercom_Config" target="dbResult">
+						<db:sql><![CDATA[INSERT INTO Conversation_stg(IntercomConversationId, IntercomCreatedAt, IntercomUpdatedAt, IntercomLastCloseAt, IntercomSecondsToInitialResponse, IntercomConversationContactId, IntercomConversationTag, IntercomConversationBody, IntercomConversationUrl, IntercomConversationAdminId, CreateDate, CreatedBy, UpdateDate, UpdatedBy)
+VALUES (:id, :createdAt, :updatedAt, :lastCloseAt, :initialResponse, :contactId, :tag, :body, :url, :adminId, :CreateDate, :CreatedBy, :UpdateDate, :UpdatedBy)]]></db:sql>
+					</db:bulk-insert>
+				</until-successful>
+				<vm:publish doc:name="conversation-publish"
+					doc:id="359bc81c-0630-4a69-8025-792c13304615"
+					config-ref="intercom_VM_Config" queueName="conversation-publish" />
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-continue enableNotifications="true"
+				logException="true" doc:name="On Error Continue"
+				doc:id="7ed8b923-cd02-4f62-90ef-16d3c85842c2" type="ANY">
+				<ee:transform doc:name="Transform Message"
+					doc:id="57d77861-e0c6-4364-b88b-c5419ddd2ee3">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    flow: vars.flowName,
+    errorIdentifier: error.errorType.identifier,
+    detailedDescription: error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger"
+					doc:id="eb5aa0b2-5fa5-4bec-92cb-c633a459fcc3" message="#[payload]" />
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="intServ-to-datalakeFlow"
+		doc:id="81d0964e-0c23-4cc9-8e89-ab000faaa59f">
+		<vm:listener queueName="conversation-completed" doc:name="conversation-completed" doc:id="01337395-9de4-4bf7-a355-46c9b28c3800" config-ref="intercom_VM_Config" numberOfConsumers="1"/>
+		<set-variable value="intServ-to-datalakeFlow"
+			doc:name="flowName" doc:id="fec0f776-8b04-49fe-ab82-7446459434c8"
+			variableName="flowName" />
+		<logger level="INFO"
+			doc:name="start loading aggregated conversations to dataLake"
+			doc:id="c50ad70d-423a-47ab-838f-7d99fa19cf86"
+			message="#[vars.flowName ++ ': start loading aggregated conversations to dataLake']" />
+		<db:select
+			doc:name="get AdminEmail from intServ.Admin - vars.admins"
+			doc:id="0sdc3c66c-fb77-4deb-89d3-456cdba57af5"
+			config-ref="DB_IntServ_Intercom_Config" target="admins"
+			targetValue="#[%dw 2.0
+output application/java
+---
+payload map {
+	'AdminId': $.AdminId,
+	'AdminEmail': $.AdminEmail
+}]">
+			<db:sql><![CDATA[SELECT IntercomAdminId AS AdminId, IntercomAdminEmail AS AdminEmail
+FROM Admin]]></db:sql>
+		</db:select>
+		<java:invoke-static doc:name="AdminEmail as String - vars.adminEmail" doc:id="3ea6086c-f4f7-4724-8fbc-009b727d22de" class="com.angieslist.SQLUtils" method="buildClause(java.lang.String[])" target="adminEmail">
+			<java:args><![CDATA[#[{arg0: vars.admins.*'AdminEmail' default []}]]]></java:args>
+		</java:invoke-static>
+		<db:select doc:name="get UserId from AL40 - vars.user" doc:id="c147d85d-175c-4c65-8a6d-e30c330eb970" config-ref="DB_AL40_Config" target="user">
+			<db:sql><![CDATA[#["SELECT UserId, Email
+FROM AngiesList.t_User
+WHERE Email IN $(vars.adminEmail)"]]]></db:sql>
+		</db:select>
+		<db:select
+			doc:name="get joined conversation from intServ - vars.joined"
+			doc:id="4abf7ef8-a62b-4760-8ce5-e1fc1626e201"
+			config-ref="DB_IntServ_Intercom_Config" target="joined">
+			<db:sql><![CDATA[SELECT conv.IntercomConversationId AS ConversationID, conv.IntercomCreatedAt AS ConversationCreatedAt, conv.IntercomLastCloseAt AS ConversationLastCloseAt, conv.IntercomSecondsToInitialResponse AS SecondsToInitialResponse, cont.IntercomServiceProviderId AS ServiceProviderID, adm.IntercomAdminEmail as AdminEmail, conv.IntercomConversationTag AS ConversationTag, conv.IntercomConversationBody AS ConversationBody, conv.IntercomConversationUrl AS ConversationStartedURL
+FROM Conversation conv
+LEFT JOIN Contact cont
+ON conv.IntercomConversationContactId = cont.IntercomContactId
+LEFT JOIN Admin adm
+ON conv.IntercomConversationAdminId = adm.IntercomAdminId
+]]></db:sql>
+		</db:select>
+		<java:invoke-static
+			doc:name="ConversationId from IntServ - vars.newConvId"
+			doc:id="de9df8c4-2f71-45ac-80e7-cd0c2611c9a9"
+			class="com.angieslist.SQLUtils"
+			method="buildClause(java.lang.String[])" target="newConvId">
+			<java:args><![CDATA[#[{arg0: vars.joined.*'ConversationID' default []}]]]></java:args>
+		</java:invoke-static>
+		<ee:transform doc:name="payload to datafoundation"
+			doc:id="e5f36e30-0c9e-4ec6-92f5-59addc9aa821">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+vars.joined map {
+  ConversationID: $.ConversationID, 
+  CreatedAt: $.ConversationCreatedAt,
+  LastCloseAt: if(isEmpty($.ConversationLastCloseAt)) null else $.ConversationLastCloseAt,
+  SecondsToInitialResponse: $.SecondsToInitialResponse,
+  ServiceProviderID: $.ServiceProviderID,
+  AdminId: $.AdminId,
+  AdminEmail: $.AdminEmail,
+  UserEmail: ((vars.user.Email filter (val, index) -> (val == $.AdminEmail)) reduce $$),
+  UserId: ((vars.user filter (val, index) -> (val.Email == $.AdminEmail)) reduce $$).UserId,
+  Tag: $.ConversationTag,
+  Body: $.ConversationBody,
+  StartedURL: $.ConversationStartedURL,
+  CreateDate: now() as LocalDateTime,
+  CreatedBy: "MulesoftApp",
+  UpdateDate:now() as LocalDateTime,
+  UpdatedBy: "MulesoftApp"
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="payload as json" doc:id="c01de343-c1a4-4fa1-b021-caf41e324f81" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="0d86588e-8f89-430b-9623-acf3df3c2489" >
+			<db:select doc:name="IntercomConversationID from datalake" doc:id="c58069a2-a925-49c8-aabc-97522ff31e21" config-ref="DB_DataLake_Config" target="IdInB">
+						<db:sql><![CDATA[SELECT IntercomConversationID
+FROM dbo.Intercom_Conversation
+WHERE ConversationID = :ConversationID]]></db:sql>
+						<db:input-parameters><![CDATA[#[{'ConversationID': payload.ConversationID}]]]></db:input-parameters>
+					</db:select>
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="69a18b53-1297-4897-ba61-2fef4e27bb0a" >
+				<choice doc:name="Choice" doc:id="ac0308ad-9aff-42c5-b2a6-de443e62273e">
+			<when expression="#[sizeOf(vars.IdInB) == 0]">
+					<db:insert doc:name="Insert" doc:id="f37418ae-bff7-4884-a5ed-e65b1fc038ab" config-ref="DB_DataLake_Config">
+						<db:sql><![CDATA[INSERT INTO dbo.Intercom_Conversation (ConversationID, ConversationCreatedAt, ConversationLastCloseAt, SecondsToInitialResponse, ServiceProviderID, ALEmployeeUserID, ConversationTag, ConversationBody, ConversationStartedURL, CreateDate, CreatedBy, UpdateDate, UpdatedBy) 
+VALUES (:ConversationID, :CreatedAt, :LastCloseAt, :SecondsToInitialResponse, :ServiceProviderID, :UserId, :Tag, :Body, :StartedURL, :CreateDate, :CreatedBy, :UpdateDate, :UpdatedBy)]]></db:sql>
+						<db:input-parameters><![CDATA[#[{
+ 'ConversationID': payload.ConversationID,
+ 'CreatedAt': payload.CreatedAt,
+ 'LastCloseAt': payload.LastCloseAt,
+ 'SecondsToInitialResponse': payload.SecondsToInitialResponse,
+ 'ServiceProviderID': payload.ServiceProviderID,
+ 'UserId': payload.UserId,
+ 'Tag': payload.Tag,
+ 'Body': payload.Body,
+ 'StartedURL': payload.StartedURL,
+ 'CreateDate': payload.CreateDate,
+ 'CreatedBy': payload.CreatedBy,
+ 'UpdateDate': payload.UpdateDate,
+ 'UpdatedBy': payload.UpdatedBy
+ }]]]></db:input-parameters>
+					</db:insert>
+			</when>
+				<otherwise>
+					<db:update doc:name="Update" doc:id="da0e649b-02f9-4845-a331-5bcf039fac83" config-ref="DB_DataLake_Config">
+						<db:sql><![CDATA[UPDATE dbo.Intercom_Conversation
+SET ConversationCreatedAt= :CreatedAt, 
+ConversationLastCloseAt= :LastCloseAt, 
+SecondsToInitialResponse= :SecondsToInitialResponse, 
+ServiceProviderID= :ServiceProviderID, 
+ALEmployeeUserID= :UserId, 
+ConversationTag= :Tag, 
+ConversationBody= :Body, 
+ConversationStartedURL= :StartedURL, 
+CreateDate= :CreateDate, 
+CreatedBy= :CreatedBy, 
+UpdateDate= :UpdateDate, 
+UpdatedBy= :UpdatedBy
+WHERE ConversationID= :IdInB]]></db:sql>
+						<db:input-parameters><![CDATA[#[{
+ 'IdInB': payload.ConversationID,
+ 'CreatedAt': payload.CreatedAt,
+ 'LastCloseAt': payload.LastCloseAt,
+ 'SecondsToInitialResponse': payload.SecondsToInitialResponse,
+ 'ServiceProviderID': payload.ServiceProviderID,
+ 'UserId': payload.UserId,
+ 'Tag': payload.Tag,
+ 'Body': payload.Body,
+ 'StartedURL': payload.StartedURL,
+ 'CreateDate': payload.CreateDate,
+ 'CreatedBy': payload.CreatedBy,
+ 'UpdateDate': payload.UpdateDate,
+ 'UpdatedBy': payload.UpdatedBy
+ }]]]></db:input-parameters>
+					</db:update>
+			</otherwise>
+		</choice>
+			</until-successful>
+		</foreach>
+		<logger level="INFO" doc:name="finished loading to datalake" doc:id="45af1fda-09eb-4165-b59d-8ed77447f40e" message="#[vars.flowName ++ ': finished loading aggregated conversation to datalake']"/>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="34357fbd-53a0-417b-a9e8-48e7a12e9f8a" type="ANY">
+				<ee:transform doc:name="Transform Message" doc:id="2aa254ea-4895-4964-acb0-4cd9b416b30b" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    flow: vars.flowName,
+    errorIdentifier: error.errorType.identifier,
+    detailedDescription: error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Logger" doc:id="c7d3d422-d810-49bf-b62f-6257a1e7f7c5" message="#[payload]"/>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+
+</mule>

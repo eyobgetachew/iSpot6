@@ -1,0 +1,22 @@
+#%RAML 1.0
+title: external-data-integration
+
+/healthcheck:
+  displayName: Health check
+  description: Simple endpoint to validate that the app is up
+  get:
+    description: Simple reply to validate that the app is up.        
+    responses:
+      200:
+        body:
+          application/json:
+
+/trigger:
+  displayName: trigger vm queues
+  description: Simple endpoint to manually trigger vm queues as query params
+  get:
+    description: Simple endpoint to manually trigger vm queues as query params        
+    responses:
+      200:
+        body:
+          application/json:

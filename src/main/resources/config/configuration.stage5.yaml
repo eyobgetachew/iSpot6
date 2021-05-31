@@ -1,0 +1,43 @@
+intercom:
+  protocol: "HTTPS"
+  host: "REPLACE_ME"
+  token: "REPLACE_ME"
+  per_page: 
+    conversations: "50"
+    contacts: "120"
+  schedule: "0 0 10 ? * MON-SUN"
+  vm:
+    timeout:
+      conversations: "6000"
+      contacts: "12000"
+
+jdbc:
+  default_query_timeout_seconds: "300"
+  default_reconnect_frequency_ms: "5000"
+  al40:
+    host: "REPLACE_ME"
+    port: "3306"
+    schema: ""
+    user:
+      name: "REPLACE_ME"
+      password: "REPLACE_ME"
+    connection_settings: "autoReconnect=true&connectTimeout=6000&socketTimeout=1500000&tcpKeepAlive=true&tcpNoDelay=true&"
+  datalake:
+    driver: "net.sourceforge.jtds.jdbc.Driver"
+    host: "REPLACE_ME"
+    port: "1433"
+    schema: "DataFoundation"
+    user:
+      domain_param: ""
+      name: "REPLACE_ME"
+      password: "REPLACE_ME"
+    connection_settings: "sendStringParametersAsUnicode=false;loginTimeout=20;socketTimeout=1500000;socketKeepAlive=true;tcpNoDelay=true;useCursors=true;"
+  intServ:
+    intercom:
+      host: "REPLACE_ME"
+      port: "3306"
+      schema: "MuleSoftIntercom"
+      user:
+        name: "REPLACE_ME"
+        password: "REPLACE_ME"
+      connection_settings: "autoReconnect=true&connectTimeout=45000&socketTimeout=1500000&tcpKeepAlive=true&tcpNoDelay=true&"

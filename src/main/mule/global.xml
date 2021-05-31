@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd">
+
+	<global-property doc:name="Global Property"
+		doc:id="fb73f9b8-82fc-4d2e-942b-cee06fd399e7" name="mule.env"
+		value="local" />
+
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="8533f7ef-1438-41c0-a679-01eeb631ce96"
+		file="config/configuration.${mule.env}.yaml" />
+
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="908d8199-4eb9-41d9-aedd-e53bef985ae9"
+		file="config/configuration.yaml" />
+		
+	<http:listener-config
+		name="privatePortListenerConfig" doc:name="HTTP Listener config"
+		doc:id="fb0fd3aa-1a6f-41de-ae40-3a80aa65bac1" basePath="/api">
+		<http:listener-connection
+			host="${http.private.host}" port="${http.private.port}" />
+	</http:listener-config>
+
+	<db:config name="DB_AL40_Config" doc:name="Database Config"
+		doc:id="d84ef7cf-eb05-4a9d-a1ac-fd00e825560b">
+		<db:generic-connection
+			url="jdbc:mariadb://${jdbc.al40.host}:${jdbc.al40.port}/?${jdbc.al40.connection_settings}"
+			user="${jdbc.al40.user.name}" password="${jdbc.al40.user.password}"
+			driverClassName="org.mariadb.jdbc.Driver"
+			transactionIsolation="READ_UNCOMMITTED" />
+	</db:config>
+
+	<db:config name="DB_IntServ_Intercom_Config"
+		doc:name="Database Config"
+		doc:id="cf364283-12be-4106-8387-863ca780d179">
+		<db:generic-connection
+			url="jdbc:mariadb://${jdbc.intServ.intercom.host}/${jdbc.intServ.intercom.schema}?${jdbc.intServ.intercom.connection_settings}"
+			user="${jdbc.intServ.intercom.user.name}"
+			password="${jdbc.intServ.intercom.user.password}"
+			driverClassName="org.mariadb.jdbc.Driver"
+			transactionIsolation="READ_UNCOMMITTED" />
+	</db:config>
+	
+	<db:config name="DB_DataLake_Config"
+		doc:name="Database Config"
+		doc:id="a8ef451a-deaa-49e9-80b7-fa36cdb6b92a">
+		<db:generic-connection
+			url="jdbc:jtds:sqlserver://${jdbc.datalake.host}:${jdbc.datalake.port}/${jdbc.datalake.schema};${jdbc.datalake.user.domain_param};user=${jdbc.datalake.user.name};password=${jdbc.datalake.user.password};${jdbc.datalake.connection_settings};"
+			driverClassName="net.sourceforge.jtds.jdbc.Driver"
+			transactionIsolation="READ_UNCOMMITTED" useXaTransactions="false"
+			doc:name="SQL_SRV DB Config" />
+	</db:config>
+
+	<http:request-config
+		name="Intercom_HTTP_Request_config"
+		doc:name="HTTP Request configuration"
+		doc:id="2a4a2d80-1179-46c1-b51c-ca5538e4b336">
+		<http:request-connection
+			protocol="${intercom.protocol}" host="${intercom.host}" />
+		<http:default-headers>
+			<http:default-header key="Authorization"
+				value="${intercom.token}" />
+		</http:default-headers>
+	</http:request-config>
+
+	<os:object-store name="intercom_contact_Object_store"
+		doc:name="Object store" doc:id="a22b3cf3-1b7b-4958-8f01-48cc7fa35657"/>
+		
+	<os:object-store
+		name="intercom_conversation_Object_store" doc:name="Object store"
+		doc:id="0e75a162-e4df-41db-ae1a-33f9bcd58edb" />
+
+	<vm:config name="intercom_VM_Config" doc:name="VM Config"
+		doc:id="7ff04155-430a-42ef-9036-a3e91e6e03fe">
+		<vm:connection>
+			<reconnection>
+				<reconnect />
+			</reconnection>
+		</vm:connection>
+		<vm:queues>
+			<vm:queue queueName="contact-publish" />
+			<vm:queue queueName="conversation-publish" />
+			<vm:queue queueName="admin-completed" />
+			<vm:queue queueName="contact-completed" />
+			<vm:queue queueName="conversation-completed" />
+		</vm:queues>
+	</vm:config>
+	<http:request-config name="iSpot_HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="0636e81f-3ecc-4639-891c-9d56f3dc0c3a" >
+		<http:request-connection host="${MULE_EXTERNAL_DI_ISPOT_HOST}" protocol="${MULE_EXTERNAL_DI_ISPOT_PROTOCOL}">
+		</http:request-connection>
+	</http:request-config>
+	
+	<email:smtp-config name="Email_SMTP"
+		doc:name="Email SMTP" doc:id="5b4d5fd2-a397-4ea7-8b4b-949ea51443ae">
+		<email:smtp-connection host="${MULE_EXTERNAL_DI_SMTP_HOST}"
+			port="${MULE_EXTERNAL_DI_SMTP_PORT}" connectionTimeout="40" readTimeout="40"
+			writeTimeout="40">
+			<reconnection>
+				<reconnect />
+			</reconnection>
+		</email:smtp-connection>
+	</email:smtp-config>
+
+</mule>

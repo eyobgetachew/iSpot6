@@ -1,0 +1,12 @@
+{
+  "minMuleVersion": "4.3.0",
+  "secureProperties": [
+  	"intercom.host",
+  	"intercom.token",
+    "jdbc.al40.user.password",
+    "jdbc.datalake.user.password",
+    "jdbc.intServ.user.password",
+    "MULE_EXTERNAL_DI_ISPOT_CLIENT_ID",
+    "MULE_EXTERNAL_DI_ISPOT_CLIENT_SECRET"
+  ]
+}

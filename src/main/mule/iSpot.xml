@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:oauth2-provider="http://www.mulesoft.org/schema/mule/oauth2-provider" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:compression="http://www.mulesoft.org/schema/mule/compression" xmlns:ftp="http://www.mulesoft.org/schema/mule/ftp" xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd
+http://www.mulesoft.org/schema/mule/ftp http://www.mulesoft.org/schema/mule/ftp/current/mule-ftp.xsd
+http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/oauth2-provider http://www.mulesoft.org/schema/mule/oauth2-provider/current/mule-oauth2-provider.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<os:object-store name="client_Object_store" doc:name="Object store" doc:id="6d059955-78cd-4087-9e14-d9c27de229f2" />
+	<os:object-store name="token_Object_store" doc:name="Object store" doc:id="c527d4c2-eecc-4755-82b7-a83cd2c97ad6" />
+	<oauth2-provider:config name="OAuth2_Provider_Config" doc:name="OAuth2 Provider Config" doc:id="c8a99ec7-944c-4348-a000-c483b65172b1" listenerConfig="privatePortListenerConfig" clientStore="client_Object_store" supportedGrantTypes="CLIENT_CREDENTIALS" >
+		<oauth2-provider:token-config tokenStore="token_Object_store" />
+	</oauth2-provider:config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="90bf5b9c-5ad1-43c5-b9fe-e5a8490ed9de" >
+		<file:connection workingDir="${file.workingDir}" />
+	</file:config>
+	<flow name="iSpotFlow" doc:id="8b305402-387c-4018-80e7-5d162b46300e" >
+		<scheduler doc:name="Scheduler" doc:id="202326eb-69f0-4956-93d3-a131f3782bdc" >
+			<scheduling-strategy >
+				<cron expression="${MULE_EXTERNAL_DI_ISPOT_SCHEDULE}" timeZone="UTCs"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="iSpot Batches Started" doc:id="e8db7c50-da4e-4547-acd8-0b93d9609987" message="Start: iSpot flow has started"/>
+		<set-variable value="${MULE_EXTERNAL_DI_ISPOT_MAIL_ENABLED}" doc:name="mailEnabled" doc:id="f36f864c-57a4-45c0-a52b-25d8be57fca8" variableName="mailEnabled" />
+		<http:request method="POST" doc:name="Request" doc:id="41119367-b755-42af-b1af-b1392c29c0db" config-ref="iSpot_HTTP_Request_configuration" path="/v4/oauth2/token">
+			<http:body ><![CDATA[#["client_id=${MULE_EXTERNAL_DI_ISPOT_CLIENT_ID}&client_secret=${MULE_EXTERNAL_DI_ISPOT_CLIENT_SECRET}&grant_type=client_credentials"]]]></http:body>
+			<http:headers ><![CDATA[#[output application/java
+---
+{
+	"content-type" : "application/x-www-form-urlencoded"
+}]]]></http:headers>
+		</http:request>
+		<set-variable value="#[payload.access_token]" doc:name="GetAccessToken" doc:id="c7522039-694c-4338-bd51-5935fa306371" variableName="Token"/>
+		<set-variable value="#[((now() &gt;&gt; 'America/New_York') - |P1D|) as String {format: &quot;yyyy-MM-dd&quot;}]" doc:name="yesterday" doc:id="c969726a-9449-48cb-9ca1-4dcb52920e17" variableName="Yesterdays_Date"/>
+		<set-variable value="iSpotCSVFile" doc:name="CSV_Name" doc:id="71877c9a-08e7-4ec0-bd36-5dbc90fcda41" variableName="CSV_UniqueName"/>
+		<set-variable value="#[(vars.CSV_UniqueName as String) ++ &quot;_&quot; ++(now() &gt;&gt; 'America/New_York') as String {format: &quot;yyyyMMdd_HHmmss&quot;} ++ &quot;.csv&quot;]" doc:name="CSV_Timestamp" doc:id="1640f4b5-63f8-4ced-871c-36e409fdd76b" variableName="CSV_UniqueName"/>
+		<set-variable value="iSpotZipFile" doc:name="Zipped_Name" doc:id="f394d9f4-b2c7-4f58-b041-62cca79507a1" variableName="Zipped_Name"/>
+		<set-variable value="#[(vars.Zipped_Name as String) ++ &quot;_&quot; ++(now() &gt;&gt; 'America/New_York') as String {format: &quot;yyyyMMdd_HHmmss&quot;} ++ &quot;.zip&quot;]" doc:name="Zip_Timestamp" doc:id="f1892053-0e3d-4d63-a7a7-6ad1261e86f6" variableName="iSpotZip_UniqueName"/>
+		<until-successful maxRetries="${MULE_EXTERNAL_DI_ISPOT_UNTIL_SUCCESSFUL_MAX_RETRIES}" doc:name="Until Successful" doc:id="acdaed40-1591-4f64-b53f-24ad4c377811" millisBetweenRetries="${MULE_EXTERNAL_DI_ISPOT_UNTIL_SUCCESSFUL_MILLIS_BETWEEN_RETRIES}">
+			<db:select doc:name="retrieve yesterday's iSpot data" doc:id="9e067553-0d7d-4d9e-aa42-a3a8e47b1431" config-ref="DB_DataLake_Config">
+			<db:sql><![CDATA[#["select a.IpAddress, convert(varchar(19),a.OccurrenceTimestamp_EST,120) as OccurrenceTimestamp , a.UserAgent,a.contacttypeName,
+CASE WHEN ContactPlacementTypeName LIKE '%Web%' OR ContactPlacementTypeName LIKE 'HomeAdvisor_Opportunity%' OR ContactPlacementTypeName LIKE 'unknown%' THEN 'Web' 
+	 WHEN ContactPlacementTypeName LIKE '%iOS%' OR ContactPlacementTypeName LIKE '%Android%'  THEN 'App'
+     ELSE ''
+	 END [WebOrApp]
+ from dbo.Adplatform_marketingfeedbackloop  a WITH(NOLOCK)
+where cast(a.OccurrenceTimestamp_EST as date)='$(vars.Yesterdays_Date)'"]
+]]></db:sql>
+		</db:select>
+		</until-successful>
+		<batch:job jobName="iSpotBatch_Job" doc:id="61e3edcc-17e0-4a22-96b1-b7f56ed1c798" maxFailedRecords="${MULE_EXTERNAL_DI_ISPOT_BATCH_MAX_FAILED_RECORDS}" blockSize="${MULE_EXTERNAL_DI_ISPOT_BATCH_BLOCK_SIZE}">
+			<batch:process-records >
+				<batch:step name="Create_csvs" doc:id="90f25003-8bff-45fa-a327-bf7d341b80f6" >
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="fe348dc5-3313-4747-a0c4-708085db6bdd" streaming="true">
+						<ee:transform doc:name="Transform_Data" doc:id="c391a81d-6c18-4282-abdb-a76ee7518363">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/csv header=true, quoteValues=true
+---
+payload map {
+	ip: $."IpAddress",
+	datetime: $."OccurrenceTimestamp",
+	siteid: "TC-3155-2",
+	useragent: $."UserAgent",
+	app: $."WebOrApp",
+	'type': "Contact",
+	customdata: $."contacttypeName"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+						<compression:archive doc:name="Archive" doc:id="e006a03b-639a-4a91-8c0b-98d106730c50" >
+							<compression:entries ><![CDATA[#[{
+	'$(vars.CSV_UniqueName as String)': payload
+}]]]></compression:entries>
+							<compression:archiver >
+								<compression:zip-archiver />
+							</compression:archiver>
+						</compression:archive>
+						<ee:transform doc:name="Transform Message" doc:id="932303d3-0c5f-45a3-a68f-2ac1fec14a76" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+import dw::module::Multipart    
+output multipart/form-data
+---
+{
+	parts : {
+	    file : {
+	        headers : {
+	            "Content-Disposition" : {
+	                "name": "upload[file]",
+	                "filename": '$(vars.iSpotZip_UniqueName)'
+	                },
+	            "Content-Type" : "multipart/form-data"
+	            },
+	        content : payload
+	        }
+	    }
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<try doc:name="Try" doc:id="fa1ead88-6e80-4ead-96b0-65d35c12e356" >
+							<until-successful maxRetries="${MULE_EXTERNAL_DI_ISPOT_UNTIL_SUCCESSFUL_MAX_RETRIES}" doc:name="Until Successful" doc:id="52f63a5a-4069-4163-bb0e-6435aa9b109b" millisBetweenRetries="${MULE_EXTERNAL_DI_ISPOT_UNTIL_SUCCESSFUL_MILLIS_BETWEEN_RETRIES}">
+								<http:request method="POST" doc:name="Data_Upload_iSpot" doc:id="0f137115-0961-4cb1-9abf-bf1cad13d429" config-ref="iSpot_HTTP_Request_configuration" path="/v4/metrics/conversions">
+							<http:headers><![CDATA[#[output application/java
+---
+{
+	"Authorization" : "Bearer $(vars.Token)"
+}]]]></http:headers>
+						</http:request>
+							</until-successful>
+							<error-handler >
+								<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="607884ad-3d9e-4572-b032-e20a03aef325" >
+									<choice doc:name="Choice" doc:id="9b40c7e3-0dfd-488a-ad40-b69830cac511" >
+										<when expression='#[vars.mailEnabled == "true"]'>
+											<email:send doc:name="Notify of failure" doc:id="12930c39-d6fc-4242-abe1-265d1e0dc1d2" config-ref="Email_SMTP" fromAddress="${MULE_EXTERNAL_DI_ISPOT_MAIL_SENDER}" subject="${MULE_EXTERNAL_DI_ISPOT_MAIL_FAILURE_SUBJECT}">
+										<email:to-addresses>
+											<email:to-address value="${MULE_EXTERNAL_DI_ISPOT_MAIL_FAILURE_RECIPIENT_1}" />
+										</email:to-addresses>
+										<email:body contentType="text/plain">
+											<email:content><![CDATA[The iSpot Mule job failed while uploading.]]></email:content>
+										</email:body>
+									</email:send>
+										</when>
+										<otherwise >
+											<logger level="INFO" doc:name="No email sent" doc:id="c3d566b5-a921-4766-9b89-dc0367fae1d4" message="iSpot: No failure email sent"/>
+										</otherwise>
+									</choice>
+								</on-error-propagate>
+							</error-handler>
+						</try>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Done Uploading to iSpot" doc:id="8f2bf8b5-9cb6-472d-a1a2-b59fd0d96571" message="Done Uploading to iSpot"/>
+			</batch:on-complete>
+		</batch:job>
+		<logger level="INFO" doc:name="Data Transformation is complete" doc:id="bb7e827e-c8f5-40a5-9f9e-c796b5e5512d" message="Data Transformation is complete"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="a0a3c1c3-e0bd-44e4-ade0-4c465497be08" type="ANY">
+				<ee:transform doc:name="Payload" doc:id="fa1e02dc-8298-4d14-8b92-a5cfa38dcd8a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    errorIdentifier: error.errorType.identifier,
+    detailedDescription: error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="Error" doc:id="7c63503b-fb90-4fcd-ae05-fe22efa70e46" message="#[payload]"/>
+				<choice doc:name="Choice" doc:id="d15f2448-0861-4934-a208-da57bbb2afed" >
+					<when expression='#[vars.mailEnabled == "true"]'>
+						<email:send doc:name="Notify of error" doc:id="181633ee-ee61-4508-bd99-8e23dfe4642a" config-ref="Email_SMTP" fromAddress="${MULE_EXTERNAL_DI_ISPOT_MAIL_SENDER}" subject="${MULE_EXTERNAL_DI_ISPOT_MAIL_ERROR_SUBJECT}">
+					<email:to-addresses>
+						<email:to-address value="${MULE_EXTERNAL_DI_ISPOT_MAIL_ERROR_RECIPIENT_1}" />
+					</email:to-addresses>
+					<email:body contentType="text/plain">
+						<email:content><![CDATA[The iSpot Mule job errored while executing.]]></email:content>
+					</email:body>
+				</email:send>
+					</when>
+					<otherwise >
+						<logger level="INFO" doc:name="No email sent" doc:id="a8319ef4-a476-437e-a9a9-fe6f38891d39" message="iSpot: No error email sent"/>
+					</otherwise>
+				</choice>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="iSpotcreateclientflow" doc:id="2f2bdfc8-aa86-41da-b779-43beda43f28c" >
+		<http:listener doc:name="Listener" doc:id="19ca1456-b29a-426e-a6d8-1d28abbde4f0" config-ref="privatePortListenerConfig" path="/clientCreation"/>
+		<set-payload value='#["client created successfully"]' doc:name="Set Payload" doc:id="02f0c19b-5900-4955-a40c-df7a398756ee" />
+		<logger level="INFO" doc:name="Logger" doc:id="0a9a1635-4fa5-42a9-8a1a-7ec8afee2451" message="#[payload]"/>
+	</flow>
+	<flow name="iSpotOauthproviderflow" doc:id="7324a607-0e6c-49fd-9062-6bd73ec9c3f8" >
+		<http:listener doc:name="Listener" doc:id="c9041f31-cd0d-4dbe-abc1-bacb60287bde" config-ref="privatePortListenerConfig" path="/validateToken"/>
+		<oauth2-provider:validate-token doc:name="Validate token" doc:id="03b0dcb1-4a72-4d94-a3ec-3994aaec86ce" config-ref="OAuth2_Provider_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="1e7878c7-292d-4ac6-b120-b53ef4802dea" message='#["Validated token"]'/>
+	</flow>
+</mule>

@@ -1,0 +1,43 @@
+intercom:
+  protocol: "HTTPS"
+  host: "REPLACE_ME"
+  token: "REPLACE_ME"
+  per_page: 
+    conversations: "50"
+    contacts: "120"
+  schedule: "0 0 10 ? * MON-SUN"
+  vm:
+    timeout:
+      conversations: "6000"
+      contacts: "12000"
+
+jdbc:
+  default_query_timeout_seconds: "300"
+  default_reconnect_frequency_ms: "5000"
+  al40:
+    host: "mysqlserver3-stagerodney.angieslist.com"
+    port: "3306"
+    schema: ""
+    user:
+      name: "MuleSoftR"
+      password: "a551fa140405c386de2a9eb7bc3a4a59Ae1!"
+    connection_settings: "autoReconnect=true&connectTimeout=6000&socketTimeout=1500000&tcpKeepAlive=true&tcpNoDelay=true&"
+  datalake:
+    driver: "net.sourceforge.jtds.jdbc.Driver"
+    host: "mssql1-devlake.angieslist.com"
+    port: "1433"
+    schema: "DataFoundation"
+    user:
+      domain_param: ""
+      name: "MulesoftApp"
+      password: "z$zT8fs4X7hK!WW?"
+    connection_settings: "sendStringParametersAsUnicode=false;loginTimeout=20;socketTimeout=1500000;socketKeepAlive=true;tcpNoDelay=true;useCursors=true;"
+  intServ:
+    intercom:
+      host: "mysql-intserv-db-stagerodney.angieslist.com"
+      port: "3306"
+      schema: "MuleSoftIntercom"
+      user:
+        name: "MuleSoftIntercom"
+        password: "9f12d96d560efe84941acf311cf554fdAe1!"
+      connection_settings: "autoReconnect=true&connectTimeout=45000&socketTimeout=1500000&tcpKeepAlive=true&tcpNoDelay=true&"
