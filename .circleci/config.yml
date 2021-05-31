@@ -25,4 +25,4 @@ jobs:
       - run:
           name: publish to mulsoft
           command: |
-            mvn -s settings.xml clean deploy -DmuleDeploy\-DMULE_ENV=${MULE_ENV}\-DMULE_VERSION=${MULE_VERSION}\-DMULE_APP_NAME=${MULE_APP_NAME}\MULE_WORKER_TYPE=${MULE_WORKER_TYPE}\-DMULE_WORKER=${MULE_WORKER}
+             -DmuleDeploy\-DMULE_ENV=${MULE_ENV}\-DMULE_VERSION=${MULE_VERSION}\-DMULE_APP_NAME=${MULE_APP_NAME}\MULE_WORKER_TYPE=${MULE_WORKER_TYPE}\-DMULE_WORKER=${MULE_WORKER}
